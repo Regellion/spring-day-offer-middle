@@ -45,7 +45,7 @@ public class EmployeeController {
                 .stream()
                 .filter(taskDTO -> taskDTO.getId().equals(taskId))
                 .findFirst()
-                .orElseThrow(()-> new TaskNotFoundException("У работника с id " + id + " нет задачи с id " + taskId)); //todo goto except Handl
+                .orElseThrow(()-> new TaskNotFoundException("У работника с id " + id + " нет задачи с id " + taskId));
         TaskStatus status = TaskStatus.valueOf(newStatus);
         employeeService.changeTaskStatus(taskId, status);
     }
