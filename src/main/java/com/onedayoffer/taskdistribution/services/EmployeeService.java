@@ -17,6 +17,7 @@ import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -29,37 +30,60 @@ public class EmployeeService {
     private final ModelMapper modelMapper;
 
     public List<EmployeeDTO> getEmployees(@Nullable String sortDirection) {
+        log.info("Start getEmployees()");
         if(sortDirection == null || sortDirection.isEmpty()) {
-            return employeeRepository.findAll()
+            log.info("Search for workers without sorting");
+            List<EmployeeDTO> employees = employeeRepository.findAll()
                     .stream()
                     .map(employee -> modelMapper.map(employee, EmployeeDTO.class))
                     .collect(Collectors.toList());
+            log.info("Successful returned {} employees", employees.size());
+            return employees;
         }
         if(!sortDirection.equalsIgnoreCase(Sort.Direction.ASC.toString()) && !sortDirection.equalsIgnoreCase(Sort.Direction.DESC.toString())){
+            log.warn("Sort direction is invalid: {}", sortDirection);
             throw new IllegalArgumentException("Неверный параметр сортировки: " + sortDirection);
         }
         Sort sort = Sort.by(Sort.Direction.valueOf(sortDirection), "fio");
-        return employeeRepository.findAllAndSort(sort)
+        log.info("Search for employees with {} sorting", sortDirection);
+        List<EmployeeDTO> employees = employeeRepository.findAllAndSort(sort)
                 .stream()
                 .map(employee -> modelMapper.map(employee, EmployeeDTO.class))
                 .collect(Collectors.toList());
+        log.info("Successful returned {} employees", employees.size());
+        return employees;
     }
 
     @Transactional
     public EmployeeDTO getOneEmployee(Integer id) {
-        Employee employee = employeeRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Работник с id " + id + " не найден в базе данных"));    //todo в exceptHandler
-        return modelMapper.map(employee, EmployeeDTO.class);
+        log.info("Start getOneEmployee with employee id {}", id);
+        Optional<Employee> optionalEmployee = employeeRepository.findById(id);
+        if(optionalEmployee.isEmpty()){
+            log.warn("Employee with id {} not found", id);
+            throw new EntityNotFoundException("Работник с id " + id + " не найден в базе данных");
+        }
+        log.info("Employee with id: {} was found", id);
+        return modelMapper.map(optionalEmployee.get(), EmployeeDTO.class);
     }
 
     public List<TaskDTO> getTasksByEmployeeId(Integer id) {
-        Employee employee = employeeRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Работник с id " + id + " не найден в базе данных"));
-        return employee.getTasks().stream().map(task -> modelMapper.map(task, TaskDTO.class)).toList();
+        log.info("Start getOneEmployee with employee id {}", id);
+        Optional<Employee> optionalEmployee = employeeRepository.findById(id);
+        if(optionalEmployee.isEmpty()){
+            log.warn("Employee with id {} not found", id);
+            throw new EntityNotFoundException("Работник с id " + id + " не найден в базе данных");
+        }
+        List<TaskDTO> tasks = optionalEmployee.get().getTasks()
+                .stream()
+                .map(task -> modelMapper.map(task, TaskDTO.class))
+                .toList();
+        log.info("An employee with id {} had {} tasks found.", id, tasks.size());
+        return tasks;
     }
 
     @Transactional
     public void changeTaskStatus(Integer taskId, TaskStatus status) {
+
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new EntityNotFoundException("Задача с id " + taskId + " не найден в базе данных"));
         if (task.getStatus().equals(status)) {
